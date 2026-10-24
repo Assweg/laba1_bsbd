@@ -1,127 +1,53 @@
-# База данных студии дубляжа
+# База данных студии дубляжа · роли и доступ
 
-Система управления доступом к авторским материалам, контрактам с актёрами, расписаниям записей и защищённым архивам аудиофайлов.
+![Стек](https://img.shields.io/badge/PostgreSQL%20%C2%B7%20PL%2FpgSQL%20%C2%B7%20Docker-334155?style=flat-square) ![Семестр](https://img.shields.io/badge/семестр-5-0f766e?style=flat-square) ![Статус](https://img.shields.io/badge/статус-%D0%A3%D1%87%D0%B5%D0%B1%D0%BD%D1%8B%D0%B9%20%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82-64748b?style=flat-square)
 
-## Архитектура
+Учебная работа по безопасности PostgreSQL на примере студии дубляжа.
 
-### Схемы данных
-- **app** - основные бизнес-данные (актёры, проекты, контракты, сессии записи, аудиоархивы)
-- **ref** - справочники (языки, студии)
-- **audit** - аудит и логи безопасности
-- **stg** - временная/служебная область
+## Предметная область
 
-### Роли и разделение обязанностей
-- **app_owner** - владелец приложения (полный доступ к бизнес-данным)
-- **app_reader** - чтение бизнес-данных
-- **app_writer** - запись бизнес-данных
-- **auditor** - доступ к логам безопасности только на чтение
-- **ddl_admin** - администратор DDL (создание/изменение таблиц, индексов)
-- **dml_admin** - администратор DML (массовые операции)
-- **security_admin** - администратор безопасности (RLS, политики, шифрование)
+Актёры, проекты, контракты, сессии записи и аудиоархив. Схемы `app`, `ref`, `audit`, `stg` отделяют бизнес-данные, справочники, аудит и служебные объекты.
 
-### Пользователи для тестирования
-- **studio_manager** (manager_pass123) - менеджер студии
-- **voice_actor** (actor_pass123) - актёр озвучивания
-- **security_auditor** (auditor_pass123) - аудитор безопасности
-- **db_developer** (dev_pass123) - разработчик БД
+## Темы лабораторной
 
-## Развёртывание
+- Роли и распределение привилегий.
+- Политики Row Level Security.
+- Аудит входов и изменений данных.
+- Демонстрационные данные и сценарии проверки ролей.
 
-### Через Docker (рекомендуется)
+## Запуск
 
-#### Быстрый запуск
+Нужны Docker, Compose и Bash. Скрипт `run_docker.sh` использует команду `docker-compose`; если установлен только Compose v2, используйте прямой запуск:
+
 ```bash
-# Запуск контейнера и инициализация БД
-./run_docker.sh start
-
-# Подключение к БД
-./run_docker.sh connect
-
-# Просмотр логов
-./run_docker.sh logs
-
-# Запуск тестов
-./run_docker.sh test
-
-# Остановка
-./run_docker.sh stop
+docker compose up --build -d
 ```
 
-#### Ручная инициализация (если нужно)
+Скрипт управления также поддерживает команды:
+
 ```bash
-# Если контейнер уже запущен, но БД не инициализирована
-./run_docker.sh init
+bash run_docker.sh start
+bash run_docker.sh connect
+bash run_docker.sh test-roles
+bash run_docker.sh stop
 ```
 
-#### Ручной запуск
-```bash
-# Сборка и запуск
-docker-compose up -d
+## Карта файлов
 
-# Подключение к БД
-docker exec -it dubbing_studio_postgres psql -U postgres -d dubbing_studio
+- [00_init_all.sql](00_init_all.sql) — общий вход в инициализацию базы.
+- [script1.sql](script1.sql) … [script11.sql](script11.sql) — базовые этапы схемы, ролей и политик.
+- [role_testing_scenarios.sql](role_testing_scenarios.sql) — сценарии работы от разных ролей.
+- [test.sql](test.sql) — проверки БД.
+- [docker-compose.yml](docker-compose.yml), [Dockerfile](Dockerfile) — окружение.
 
-# Остановка
-docker-compose down
-```
+## Примечания к стенду
 
-#### Параметры подключения
-- **Host**: localhost
-- **Port**: 5432
-- **Database**: dubbing_studio
-- **User**: postgres
-- **Password**: secure_password_123
+Роли, пароли и данные в SQL/Compose являются частью учебного стенда. Запуск и тесты БД при публикации не выполнялись. Учётные данные и настройки для внешней среды нужно задать отдельно.
 
-### Ручное развёртывание
+## Продолжение курса
 
-1. Создайте БД PostgreSQL 14+ с расширениями pgcrypto и pgaudit
-2. Выполните скрипты в порядке:
-```bash
-psql -U postgres -d dubbing_studio -f 00_init_all.sql
-```
+[Первый семестр курса](https://github.com/Assweg/nstu/tree/main/5sem/%D0%91%D0%A1%D0%91%D0%94) · [Продолжение в шестом семестре](https://github.com/Assweg/nstu/tree/main/6sem/%D0%91%D0%A1%D0%91%D0%94).
 
-## Безопасность
+---
 
-### Row Level Security (RLS)
-- Включён для всех критически важных таблиц
-- Актёры видят только свои данные
-- Менеджеры видят только проекты своей студии
-
-### Аудит
-- **Логирование входов**: автоматическое через pgaudit + ручное через функции
-- **Аудит DML**: триггеры на все основные таблицы записывают изменения в audit.data_access_log
-
-### Классификация данных
-- **Public**: общая информация о проектах
-- **Internal**: контакты клиентов
-- **Confidential**: банковские реквизиты, суммы контрактов
-- **Restricted**: паспортные данные, налоговые номера
-
-## Тестирование
-
-### Тесты БД
-```bash
-# Запуск тестов
-./run_docker.sh test
-```
-
-
-## Структура файлов
-
-- `00_init_all.sql` - главный скрипт инициализации
-- `script1.sql` - схемы и расширения
-- `script2.sql` - таблицы
-- `script3.sql` - справочные данные
-- `script4.sql` - роли
-- `script5.sql` - привилегии
-- `script6.sql` - DEFAULT PRIVILEGES
-- `script7.sql` - аудит подключений
-- `script8.sql` - тестовые данные
-- `script9.sql` - RLS и политики
-- `script10.sql` - триггеры аудита DML и тестирование системы
-- `script11.sql` - финальная проверка
-- `test.sql` - тесты БД
-- `docker-compose.yml` - конфигурация Docker
-- `Dockerfile` - образ PostgreSQL с расширениями
-- `run_docker.sh` - скрипт управления Docker контейнером
-
+[Все учебные работы](https://github.com/Assweg/nstu) · [Профиль Assweg](https://github.com/Assweg)
